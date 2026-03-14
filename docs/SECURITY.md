@@ -1343,7 +1343,7 @@ Send details to security@a2a-sentinel.dev (to be published):
 ### GitHub Security Advisory
 
 Alternatively, use GitHub's private security advisory:
-1. Go to https://github.com/vivars7/a2a-sentinel
+1. Go to https://github.com/raeseoklee/a2a-sentinel
 2. Click "Security" → "Report a vulnerability"
 3. Fill in details and submit
 

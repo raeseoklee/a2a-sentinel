@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 )
 
 // SSEProxy proxies Server-Sent Events streams from backend agents.

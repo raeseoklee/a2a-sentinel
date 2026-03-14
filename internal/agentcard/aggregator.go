@@ -1,7 +1,7 @@
 package agentcard
 
 import (
-	"github.com/vivars7/a2a-sentinel/internal/protocol"
+	"github.com/raeseoklee/a2a-sentinel/internal/protocol"
 )
 
 // AggregateCards creates a gateway Agent Card from all healthy agents.

@@ -10,9 +10,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
-	"github.com/vivars7/a2a-sentinel/internal/migrate"
-	"github.com/vivars7/a2a-sentinel/internal/server"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/migrate"
+	"github.com/raeseoklee/a2a-sentinel/internal/server"
 )
 
 // Version is set at build time via -ldflags.

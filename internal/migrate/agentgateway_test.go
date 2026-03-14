@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
 )
 
 // minimalConfig returns a Config with only agents set (the minimum for conversion).

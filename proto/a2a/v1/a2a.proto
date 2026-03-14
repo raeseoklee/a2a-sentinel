@@ -4,7 +4,7 @@ syntax = "proto3";
 
 package a2a.v1;
 
-option go_package = "github.com/vivars7/a2a-sentinel/gen/a2a/v1;a2av1";
+option go_package = "github.com/raeseoklee/a2a-sentinel/gen/a2a/v1;a2av1";
 
 import "google/protobuf/struct.proto";
 

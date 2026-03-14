@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
-	"github.com/vivars7/a2a-sentinel/internal/ctxkeys"
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
-	"github.com/vivars7/a2a-sentinel/internal/health"
-	"github.com/vivars7/a2a-sentinel/internal/protocol"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/ctxkeys"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
+	"github.com/raeseoklee/a2a-sentinel/internal/health"
+	"github.com/raeseoklee/a2a-sentinel/internal/protocol"
 )
 
 // testConfig creates a minimal valid config pointing to a test backend.

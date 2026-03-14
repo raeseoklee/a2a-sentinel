@@ -16,7 +16,7 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 
-	"github.com/vivars7/a2a-sentinel/internal/ctxkeys"
+	"github.com/raeseoklee/a2a-sentinel/internal/ctxkeys"
 )
 
 // okHandler is a test handler that returns 200 and writes AuthInfo details.

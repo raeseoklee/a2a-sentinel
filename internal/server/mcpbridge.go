@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/agentcard"
-	"github.com/vivars7/a2a-sentinel/internal/config"
-	"github.com/vivars7/a2a-sentinel/internal/mcpserver"
-	"github.com/vivars7/a2a-sentinel/internal/proxy"
+	"github.com/raeseoklee/a2a-sentinel/internal/agentcard"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/mcpserver"
+	"github.com/raeseoklee/a2a-sentinel/internal/proxy"
 )
 
 // mcpBridge implements mcpserver.SentinelBridge by delegating to

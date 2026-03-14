@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 )
 
 // ── Mock AgentLookup ──

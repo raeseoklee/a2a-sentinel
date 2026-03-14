@@ -4,7 +4,7 @@ package migrate
 import (
 	"fmt"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
 	"gopkg.in/yaml.v3"
 )
 

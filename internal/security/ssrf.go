@@ -9,9 +9,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
-	"github.com/vivars7/a2a-sentinel/internal/protocol"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
+	"github.com/raeseoklee/a2a-sentinel/internal/protocol"
 )
 
 // privateRanges defines the CIDR blocks considered private/internal networks.

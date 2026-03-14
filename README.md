@@ -2,7 +2,7 @@
 
 [![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![CI](https://github.com/vivars7/a2a-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/vivars7/a2a-sentinel/actions/workflows/ci.yml)
+[![CI](https://github.com/raeseoklee/a2a-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/raeseoklee/a2a-sentinel/actions/workflows/ci.yml)
 
 **A lightweight, security-first A2A gateway in Go.**
 
@@ -66,7 +66,7 @@ a2a-sentinel is not trying to replace [agentgateway](https://github.com/solo-io/
 ### Clone and Run
 
 ```bash
-git clone https://github.com/vivars7/a2a-sentinel
+git clone https://github.com/raeseoklee/a2a-sentinel
 cd a2a-sentinel
 docker compose up -d --build
 ```

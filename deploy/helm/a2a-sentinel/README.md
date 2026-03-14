@@ -1,6 +1,6 @@
 # a2a-sentinel Helm Chart
 
-A Helm chart for deploying [a2a-sentinel](https://github.com/vivars7/a2a-sentinel), a lightweight, security-first A2A (Agent-to-Agent) protocol gateway, to Kubernetes.
+A Helm chart for deploying [a2a-sentinel](https://github.com/raeseoklee/a2a-sentinel), a lightweight, security-first A2A (Agent-to-Agent) protocol gateway, to Kubernetes.
 
 ## Prerequisites
 
@@ -41,7 +41,7 @@ helm uninstall my-sentinel
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `replicaCount` | int | `1` | Number of replicas |
-| `image.repository` | string | `ghcr.io/vivars7/a2a-sentinel` | Container image repository |
+| `image.repository` | string | `ghcr.io/raeseoklee/a2a-sentinel` | Container image repository |
 | `image.tag` | string | `""` | Image tag (defaults to chart `appVersion`) |
 | `image.pullPolicy` | string | `IfNotPresent` | Image pull policy |
 | `imagePullSecrets` | list | `[]` | Image pull secrets |

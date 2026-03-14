@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
-	"github.com/vivars7/a2a-sentinel/internal/protocol"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
+	"github.com/raeseoklee/a2a-sentinel/internal/protocol"
 )
 
 // NonceStore tracks request nonces for replay detection.

@@ -10,8 +10,8 @@ import (
 	"github.com/lestrrat-go/jwx/v2/jwk"
 	"github.com/lestrrat-go/jwx/v2/jwt"
 
-	"github.com/vivars7/a2a-sentinel/internal/ctxkeys"
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
+	"github.com/raeseoklee/a2a-sentinel/internal/ctxkeys"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 )
 
 // AuthMiddleware handles authentication based on configured mode.

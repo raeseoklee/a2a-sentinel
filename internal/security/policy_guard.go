@@ -6,15 +6,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/ctxkeys"
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
+	"github.com/raeseoklee/a2a-sentinel/internal/ctxkeys"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 )
 
 // policyViolationCode is the JSON-RPC error code for policy violations.
 const policyViolationCode = -32001
 
 // policyDocsURL is the documentation URL included in policy violation errors.
-const policyDocsURL = "https://github.com/vivars7/a2a-sentinel/blob/main/docs/SECURITY.md#policy-engine"
+const policyDocsURL = "https://github.com/raeseoklee/a2a-sentinel/blob/main/docs/SECURITY.md#policy-engine"
 
 // PolicyGuard is a security middleware that enforces ABAC policies.
 // It evaluates each request against the configured PolicyEngine and blocks

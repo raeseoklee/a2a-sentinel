@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 )
 
 // AgentLookup is the interface Router needs from the Agent Card Manager.

@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
-	"github.com/vivars7/a2a-sentinel/internal/ctxkeys"
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/ctxkeys"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 )
 
 // integrationBackend returns 200 and writes AuthInfo for verification.

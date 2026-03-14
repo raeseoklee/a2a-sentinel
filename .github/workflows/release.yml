@@ -90,8 +90,8 @@ jobs:
         run: |
           docker build \
             --build-arg VERSION=${{ env.VERSION }} \
-            -t ghcr.io/vivars7/a2a-sentinel:${{ env.VERSION }} \
-            -t ghcr.io/vivars7/a2a-sentinel:latest \
+            -t ghcr.io/raeseoklee/a2a-sentinel:${{ env.VERSION }} \
+            -t ghcr.io/raeseoklee/a2a-sentinel:latest \
             .
-          docker push ghcr.io/vivars7/a2a-sentinel:${{ env.VERSION }}
-          docker push ghcr.io/vivars7/a2a-sentinel:latest
+          docker push ghcr.io/raeseoklee/a2a-sentinel:${{ env.VERSION }}
+          docker push ghcr.io/raeseoklee/a2a-sentinel:latest

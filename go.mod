@@ -1,4 +1,4 @@
-module github.com/vivars7/a2a-sentinel
+module github.com/raeseoklee/a2a-sentinel
 
 go 1.26.0
 

@@ -112,18 +112,18 @@ jobs:
 
       - name: Build and push sentinel
         run: |
-          docker build -t ghcr.io/vivars7/a2a-sentinel:latest -t ghcr.io/vivars7/a2a-sentinel:sha-${{ env.SHORT_SHA }} .
-          docker push ghcr.io/vivars7/a2a-sentinel:latest
-          docker push ghcr.io/vivars7/a2a-sentinel:sha-${{ env.SHORT_SHA }}
+          docker build -t ghcr.io/raeseoklee/a2a-sentinel:latest -t ghcr.io/raeseoklee/a2a-sentinel:sha-${{ env.SHORT_SHA }} .
+          docker push ghcr.io/raeseoklee/a2a-sentinel:latest
+          docker push ghcr.io/raeseoklee/a2a-sentinel:sha-${{ env.SHORT_SHA }}
 
       - name: Build and push echo-agent
         run: |
-          docker build -t ghcr.io/vivars7/a2a-sentinel-echo-agent:latest -t ghcr.io/vivars7/a2a-sentinel-echo-agent:sha-${{ env.SHORT_SHA }} ./examples/echo-agent
-          docker push ghcr.io/vivars7/a2a-sentinel-echo-agent:latest
-          docker push ghcr.io/vivars7/a2a-sentinel-echo-agent:sha-${{ env.SHORT_SHA }}
+          docker build -t ghcr.io/raeseoklee/a2a-sentinel-echo-agent:latest -t ghcr.io/raeseoklee/a2a-sentinel-echo-agent:sha-${{ env.SHORT_SHA }} ./examples/echo-agent
+          docker push ghcr.io/raeseoklee/a2a-sentinel-echo-agent:latest
+          docker push ghcr.io/raeseoklee/a2a-sentinel-echo-agent:sha-${{ env.SHORT_SHA }}
 
       - name: Build and push streaming-agent
         run: |
-          docker build -t ghcr.io/vivars7/a2a-sentinel-streaming-agent:latest -t ghcr.io/vivars7/a2a-sentinel-streaming-agent:sha-${{ env.SHORT_SHA }} ./examples/streaming-agent
-          docker push ghcr.io/vivars7/a2a-sentinel-streaming-agent:latest
-          docker push ghcr.io/vivars7/a2a-sentinel-streaming-agent:sha-${{ env.SHORT_SHA }}
+          docker build -t ghcr.io/raeseoklee/a2a-sentinel-streaming-agent:latest -t ghcr.io/raeseoklee/a2a-sentinel-streaming-agent:sha-${{ env.SHORT_SHA }} ./examples/streaming-agent
+          docker push ghcr.io/raeseoklee/a2a-sentinel-streaming-agent:latest
+          docker push ghcr.io/raeseoklee/a2a-sentinel-streaming-agent:sha-${{ env.SHORT_SHA }}

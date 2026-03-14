@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/vivars7/a2a-sentinel
+  repository: ghcr.io/raeseoklee/a2a-sentinel
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
   pullPolicy: IfNotPresent

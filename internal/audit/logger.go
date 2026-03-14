@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/vivars7/a2a-sentinel/internal/ctxkeys"
+	"github.com/raeseoklee/a2a-sentinel/internal/ctxkeys"
 )
 
 // Logger provides OpenTelemetry-compatible structured audit logging.

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
 )
 
 // timeLayoutHHMM is the expected format for TimeRange.Start and TimeRange.End.

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/protocol"
+	"github.com/raeseoklee/a2a-sentinel/internal/protocol"
 )
 
 func testPendingChange(agentName string) *PendingChange {

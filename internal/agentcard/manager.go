@@ -9,8 +9,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
-	"github.com/vivars7/a2a-sentinel/internal/protocol"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/protocol"
 )
 
 // Manager manages Agent Card lifecycle for all configured agents.

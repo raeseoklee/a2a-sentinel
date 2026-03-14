@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 	"golang.org/x/time/rate"
 )
 

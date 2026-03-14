@@ -7,8 +7,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	a2av1 "github.com/vivars7/a2a-sentinel/gen/a2a/v1"
-	"github.com/vivars7/a2a-sentinel/internal/protocol"
+	a2av1 "github.com/raeseoklee/a2a-sentinel/gen/a2a/v1"
+	"github.com/raeseoklee/a2a-sentinel/internal/protocol"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 

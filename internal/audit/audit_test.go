@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/ctxkeys"
+	"github.com/raeseoklee/a2a-sentinel/internal/ctxkeys"
 )
 
 // captureLog runs fn with a JSON slog logger writing to a buffer and returns the output.

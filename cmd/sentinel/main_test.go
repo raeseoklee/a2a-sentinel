@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/config"
+	"github.com/raeseoklee/a2a-sentinel/internal/config"
 )
 
 func TestRunHelp(t *testing.T) {

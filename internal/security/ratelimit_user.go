@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/vivars7/a2a-sentinel/internal/ctxkeys"
-	sentinelerrors "github.com/vivars7/a2a-sentinel/internal/errors"
+	"github.com/raeseoklee/a2a-sentinel/internal/ctxkeys"
+	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 	"golang.org/x/time/rate"
 )
 
