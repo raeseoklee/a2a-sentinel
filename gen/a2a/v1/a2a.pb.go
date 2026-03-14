@@ -1379,7 +1379,7 @@ const file_a2a_v1_a2a_proto_rawDesc = "" +
 	"\n" +
 	"CancelTask\x12\x19.a2a.v1.CancelTaskRequest\x1a\x1a.a2a.v1.CancelTaskResponse\x12X\n" +
 	"\x19SetPushNotificationConfig\x12\x1b.a2a.v1.SetPushNotifRequest\x1a\x1e.a2a.v1.PushNotificationConfig\x12X\n" +
-	"\x19GetPushNotificationConfig\x12\x1b.a2a.v1.GetPushNotifRequest\x1a\x1e.a2a.v1.PushNotificationConfigB2Z0github.com/raeseoklee/a2a-sentinel/gen/a2a/v1;a2av1b\x06proto3"
+	"\x19GetPushNotificationConfig\x12\x1b.a2a.v1.GetPushNotifRequest\x1a\x1e.a2a.v1.PushNotificationConfigB5Z3github.com/raeseoklee/a2a-sentinel/gen/a2a/v1;a2av1b\x06proto3"
 
 var (
 	file_a2a_v1_a2a_proto_rawDescOnce sync.Once
