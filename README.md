@@ -14,7 +14,7 @@ Develop with sentinel, deploy with agentgateway. Zero agent code changes.
 
 ## Why sentinel?
 
-a2a-sentinel is not trying to replace [agentgateway](https://github.com/solo-io/agentgateway) (the Kubernetes-native A2A+MCP data plane). Instead, it fills a different need: developers who want to add A2A security to their agents in 5 minutes, without waiting for Kubernetes setup.
+a2a-sentinel is not trying to replace [agentgateway](https://github.com/agentgateway/agentgateway) (the Kubernetes-native A2A+MCP data plane). Instead, it fills a different need: developers who want to add A2A security to their agents in 5 minutes, without waiting for Kubernetes setup.
 
 | | agentgateway | a2a-sentinel |
 |---|---|---|
@@ -575,7 +575,7 @@ go test -race ./...
 
 ## Migration to agentgateway
 
-When you're ready to move to production infrastructure, migrate to agentgateway (Solo.io):
+When you're ready to move to production infrastructure, migrate to agentgateway (Linux Foundation):
 
 **No agent code changes required.** Both sentinel and agentgateway use the same A2A protocol and expect the same Agent Card format. Your agents work with either gateway out of the box.
 
@@ -683,7 +683,7 @@ Apache License 2.0 — See [LICENSE](LICENSE) for details.
 
 - **A2A Protocol**: Linux Foundation (Google, Microsoft, AWS, Salesforce, SAP)
 - **Built with**: [Claude Code](https://claude.ai) — AI-assisted development
-- **Inspiration**: [agentgateway](https://github.com/solo-io/agentgateway) (agentgateway is the production platform; sentinel is the developer's gateway)
+- **Inspiration**: [agentgateway](https://github.com/agentgateway/agentgateway) (agentgateway is the production platform; sentinel is the developer's gateway)
 
 ---
 

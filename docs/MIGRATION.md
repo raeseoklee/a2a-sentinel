@@ -1,6 +1,6 @@
 # Migration to agentgateway
 
-When you're ready to move from a2a-sentinel to production infrastructure, agentgateway (Solo.io) is your zero-friction migration path.
+When you're ready to move from a2a-sentinel to production infrastructure, agentgateway (Linux Foundation) is your zero-friction migration path.
 
 **The core principle: Your agents don't change.** Both sentinel and agentgateway implement the same A2A protocol and expect the same Agent Card format. Migration is a gateway swap, not an agent rewrite.
 
@@ -143,7 +143,7 @@ logging:
 ### Step 1: Prepare agentgateway Environment
 
 If you're not familiar with agentgateway, start here:
-- [agentgateway GitHub](https://github.com/solo-io/agentgateway)
+- [agentgateway GitHub](https://github.com/agentgateway/agentgateway)
 - [agentgateway Quickstart](https://docs.agentgateway.dev/quickstart)
 
 Minimum prerequisites:
@@ -628,7 +628,7 @@ A: For a small team with 5-10 agents:
 Larger teams may spend more time on observability and multi-tenancy setup.
 
 **Q: What if I find bugs in agentgateway?**
-A: agentgateway is maintained by Solo.io and the Linux Foundation. Report issues on [GitHub](https://github.com/solo-io/agentgateway/issues). In the meantime, your sentinel instance is still available—route traffic back if needed.
+A: agentgateway is a Linux Foundation project. Report issues on [GitHub](https://github.com/agentgateway/agentgateway/issues). In the meantime, your sentinel instance is still available—route traffic back if needed.
 
 ---
 
@@ -653,8 +653,8 @@ curl http://localhost:8080/readyz
 ### agentgateway Resources
 
 - **Documentation**: https://docs.agentgateway.dev/
-- **GitHub**: https://github.com/solo-io/agentgateway
-- **Community**: https://slack.agentgateway.dev/ (or Solo.io Slack)
+- **GitHub**: https://github.com/agentgateway/agentgateway
+- **Community**: https://slack.agentgateway.dev/
 - **API Reference**: https://docs.agentgateway.dev/api/
 
 ### A2A Protocol Resources
@@ -676,7 +676,7 @@ curl http://localhost:8080/readyz
 ### Questions About agentgateway?
 
 - **Official Docs**: https://docs.agentgateway.dev/
-- **GitHub Issues**: https://github.com/solo-io/agentgateway/issues
+- **GitHub Issues**: https://github.com/agentgateway/agentgateway/issues
 - **Community Slack**: https://slack.agentgateway.dev/
 
 ---

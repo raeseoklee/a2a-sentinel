@@ -634,7 +634,7 @@ For security issues, email maintainers directly (do not open public issues).
 - **A2A Protocol Specification** — [a2a-protocol.org](https://a2a-protocol.org/latest/specification/)
 - **Go Best Practices** — [golang.org/doc/effective_go](https://golang.org/doc/effective_go)
 - **OpenTelemetry Semantics** — [opentelemetry.io/docs/specs/](https://opentelemetry.io/docs/specs/)
-- **agentgateway** — [github.com/solo-io/agentgateway](https://github.com/solo-io/agentgateway) (production platform)
+- **agentgateway** — [github.com/agentgateway/agentgateway](https://github.com/agentgateway/agentgateway) (production platform)
 
 ---
 
