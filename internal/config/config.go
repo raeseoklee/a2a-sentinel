@@ -25,6 +25,7 @@ type Config struct {
 	Shutdown       ShutdownConfig       `yaml:"shutdown"`
 	Migration      MigrationConfig      `yaml:"migration"`
 	Reload         ReloadConfig         `yaml:"reload"`
+	Locale         LocaleConfig         `yaml:"locale"`
 }
 
 // ListenConfig defines the listener address and connection limits.
@@ -240,6 +241,11 @@ type ReloadConfig struct {
 	Enabled   bool     `yaml:"enabled"`    // default true
 	WatchFile bool     `yaml:"watch_file"` // default true
 	Debounce  Duration `yaml:"debounce"`   // default 2s
+}
+
+// LocaleConfig holds internationalization settings.
+type LocaleConfig struct {
+	Default string `yaml:"default"` // Language code (e.g., "en", "ko")
 }
 
 // Duration is a time.Duration that supports YAML string parsing (e.g., "60s", "5m").

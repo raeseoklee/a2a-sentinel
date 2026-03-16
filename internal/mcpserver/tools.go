@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/raeseoklee/a2a-sentinel/internal/i18n"
 )
 
 // toolCallParams is the params block for a tools/call request.
@@ -53,13 +55,14 @@ func isWriteTool(name string) bool {
 
 // handleToolsCall dispatches a tools/call request to the correct tool handler.
 // authenticated indicates whether the caller provided a valid Bearer token.
-func (s *Server) handleToolsCall(req jsonRPCRequest, authenticated bool) jsonRPCResponse {
+// l provides localized translations for user-facing error messages.
+func (s *Server) handleToolsCall(req jsonRPCRequest, authenticated bool, l *i18n.Localizer) jsonRPCResponse {
 	var params toolCallParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return jsonRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
-			Error:   &rpcError{Code: -32602, Message: "invalid params: " + err.Error()},
+			Error:   &rpcError{Code: -32602, Message: l.Tf(i18n.ErrInvalidParams, err.Error())},
 		}
 	}
 
@@ -70,7 +73,7 @@ func (s *Server) handleToolsCall(req jsonRPCRequest, authenticated bool) jsonRPC
 			return jsonRPCResponse{
 				JSONRPC: "2.0",
 				ID:      req.ID,
-				Error:   &rpcError{Code: -32001, Message: "MCP auth token not configured: write operations are disabled"},
+				Error:   &rpcError{Code: -32001, Message: l.T(i18n.ErrWriteTokenNotConfigured)},
 			}
 		}
 		if !authenticated {
@@ -78,7 +81,7 @@ func (s *Server) handleToolsCall(req jsonRPCRequest, authenticated bool) jsonRPC
 			return jsonRPCResponse{
 				JSONRPC: "2.0",
 				ID:      req.ID,
-				Error:   &rpcError{Code: -32001, Message: "Unauthorized: valid Bearer token required for write operations"},
+				Error:   &rpcError{Code: -32001, Message: l.T(i18n.ErrWriteTokenRequired)},
 			}
 		}
 	}
@@ -131,7 +134,7 @@ func (s *Server) handleToolsCall(req jsonRPCRequest, authenticated bool) jsonRPC
 		return jsonRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
-			Error:   &rpcError{Code: -32602, Message: fmt.Sprintf("unknown tool: %s", params.Name)},
+			Error:   &rpcError{Code: -32602, Message: l.Tf(i18n.ErrUnknownTool, params.Name)},
 		}
 	}
 
@@ -139,7 +142,7 @@ func (s *Server) handleToolsCall(req jsonRPCRequest, authenticated bool) jsonRPC
 		return jsonRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
-			Error:   &rpcError{Code: -32603, Message: "internal error: " + err.Error()},
+			Error:   &rpcError{Code: -32603, Message: l.Tf(i18n.ErrInternalError, err.Error())},
 		}
 	}
 

@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/raeseoklee/a2a-sentinel/internal/i18n"
 )
 
 // newNopLogger returns a logger that discards all output.
@@ -288,12 +290,23 @@ func defaultMockBridge() *mockBridge {
 	}
 }
 
+// testBundle creates an i18n Bundle for tests, failing the test on error.
+func testBundle(t *testing.T) *i18n.Bundle {
+	t.Helper()
+	bundle, err := i18n.NewBundle("en")
+	if err != nil {
+		t.Fatalf("NewBundle: %v", err)
+	}
+	return bundle
+}
+
 func newTestServer(t *testing.T, token string) (*Server, *httptest.Server) {
 	t.Helper()
 	bridge := defaultMockBridge()
 
 	logger := newNopLogger()
-	srv := NewServer(Config{Host: "127.0.0.1", Port: 0, Token: token}, bridge, logger)
+	bundle := testBundle(t)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0, Token: token}, bridge, logger, bundle)
 
 	// Use httptest directly so we don't need a real listening port.
 	httpSrv := httptest.NewServer(http.HandlerFunc(srv.handleRPC))
@@ -793,7 +806,7 @@ func TestToolsCall_GetBlockedRequests_WithLimit(t *testing.T) {
 		{ClientIP: "3.3.3.3", BlockReason: "ssrf_blocked"},
 	}
 	logger := newNopLogger()
-	mcpSrv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger)
+	mcpSrv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, testBundle(t))
 	httpSrv := httptest.NewServer(http.HandlerFunc(mcpSrv.handleRPC))
 	defer httpSrv.Close()
 
@@ -1379,7 +1392,7 @@ func TestToolsCall_ApproveCardChange_BridgeError_ReturnsError(t *testing.T) {
 	bridge := defaultMockBridge()
 	bridge.approveCardErr = errors.New("no pending change")
 	logger := newNopLogger()
-	mcpSrv := NewServer(Config{Host: "127.0.0.1", Port: 0, Token: "tok"}, bridge, logger)
+	mcpSrv := NewServer(Config{Host: "127.0.0.1", Port: 0, Token: "tok"}, bridge, logger, testBundle(t))
 	httpSrv := httptest.NewServer(http.HandlerFunc(mcpSrv.handleRPC))
 	defer httpSrv.Close()
 
@@ -1455,7 +1468,7 @@ func TestToolsCall_RejectCardChange_BridgeError_ReturnsError(t *testing.T) {
 	bridge := defaultMockBridge()
 	bridge.rejectCardErr = errors.New("no pending change")
 	logger := newNopLogger()
-	mcpSrv := NewServer(Config{Host: "127.0.0.1", Port: 0, Token: "tok"}, bridge, logger)
+	mcpSrv := NewServer(Config{Host: "127.0.0.1", Port: 0, Token: "tok"}, bridge, logger, testBundle(t))
 	httpSrv := httptest.NewServer(http.HandlerFunc(mcpSrv.handleRPC))
 	defer httpSrv.Close()
 
@@ -1870,7 +1883,7 @@ func TestParseError_InvalidJSON(t *testing.T) {
 func TestNewServer_AddrFromConfig(t *testing.T) {
 	bridge := &mockBridge{}
 	logger := newNopLogger()
-	srv := NewServer(Config{Host: "127.0.0.1", Port: 9999, Token: ""}, bridge, logger)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 9999, Token: ""}, bridge, logger, testBundle(t))
 	if srv.addr != "127.0.0.1:9999" {
 		t.Errorf("expected addr=127.0.0.1:9999, got %q", srv.addr)
 	}
@@ -1879,7 +1892,7 @@ func TestNewServer_AddrFromConfig(t *testing.T) {
 func TestNewServer_TokenStored(t *testing.T) {
 	bridge := &mockBridge{}
 	logger := newNopLogger()
-	srv := NewServer(Config{Host: "127.0.0.1", Port: 9999, Token: "tok123"}, bridge, logger)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 9999, Token: "tok123"}, bridge, logger, testBundle(t))
 	if srv.token != "tok123" {
 		t.Errorf("expected token=tok123, got %q", srv.token)
 	}
@@ -1891,7 +1904,7 @@ func TestStart_ContextCancel_StopsServer(t *testing.T) {
 	bridge := &mockBridge{}
 	logger := newNopLogger()
 	// Port 0 lets the OS pick a free port.
-	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, testBundle(t))
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -1920,7 +1933,7 @@ func TestStart_InvalidAddr_ReturnsError(t *testing.T) {
 	bridge := &mockBridge{}
 	logger := newNopLogger()
 	// Use an invalid address that will fail to listen.
-	srv := NewServer(Config{Host: "invalid-host-that-cannot-bind", Port: 1}, bridge, logger)
+	srv := NewServer(Config{Host: "invalid-host-that-cannot-bind", Port: 1}, bridge, logger, testBundle(t))
 
 	ctx := context.Background()
 	err := srv.Start(ctx)
@@ -1932,7 +1945,7 @@ func TestStart_InvalidAddr_ReturnsError(t *testing.T) {
 func TestShutdown_NilHTTPServer_NoError(t *testing.T) {
 	bridge := &mockBridge{}
 	logger := newNopLogger()
-	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, testBundle(t))
 	// httpServer is nil because Start() was never called.
 
 	ctx := context.Background()
@@ -1978,7 +1991,7 @@ func TestToolGetBlockedRequests_InvalidArgumentsJSON_ReturnsError(t *testing.T) 
 	// Call toolGetBlockedRequests directly with syntactically invalid JSON.
 	bridge := &mockBridge{}
 	logger := newNopLogger()
-	mcpSrv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger)
+	mcpSrv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, testBundle(t))
 
 	_, err := mcpSrv.toolGetBlockedRequests(json.RawMessage(`{invalid`))
 	if err == nil {
@@ -1993,7 +2006,7 @@ func TestShutdown_CancelledContext_WithActiveConn_ReturnsError(t *testing.T) {
 	blockCh := make(chan struct{})
 	bridge := &blockingBridge{blockCh: blockCh}
 	logger := newNopLogger()
-	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, testBundle(t))
 
 	// Set up the http.Server directly so we know the address.
 	mux := http.NewServeMux()
@@ -2042,7 +2055,7 @@ func TestStart_ServeError_ReturnsError(t *testing.T) {
 	bridge := &mockBridge{}
 	logger := newNopLogger()
 	// Port 0 — OS picks a free port.
-	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, testBundle(t))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -2087,7 +2100,7 @@ func (f *failListener) Addr() net.Addr { return &net.TCPAddr{IP: net.IPv4(127, 0
 func TestStart_ServeNonClosedError(t *testing.T) {
 	bridge := &mockBridge{}
 	logger := newNopLogger()
-	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, testBundle(t))
 
 	// Inject a listener that immediately fails on Accept.
 	srv.listener = &failListener{}
@@ -2362,5 +2375,139 @@ func TestResourcesRead_InvalidParams_ReturnsError(t *testing.T) {
 
 	if resp.Error == nil {
 		t.Fatal("expected error for invalid resources/read params, got nil")
+	}
+}
+
+// ── i18n tests ───────────────────────────────────────────────────────────────
+
+func TestI18n_KoreanToolsList(t *testing.T) {
+	bridge := defaultMockBridge()
+	logger := newNopLogger()
+	bundle := testBundle(t)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, bundle)
+	httpSrv := httptest.NewServer(http.HandlerFunc(srv.handleRPC))
+	defer httpSrv.Close()
+
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "tools/list",
+	})
+	req, _ := http.NewRequest(http.MethodPost, httpSrv.URL, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Language", "ko-KR,ko;q=0.9")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var rpcResp jsonRPCResponse
+	json.NewDecoder(resp.Body).Decode(&rpcResp)
+	if rpcResp.Error != nil {
+		t.Fatalf("unexpected error: %+v", rpcResp.Error)
+	}
+
+	result := rpcResp.Result.(map[string]interface{})
+	tools := result["tools"].([]interface{})
+	if len(tools) == 0 {
+		t.Fatal("expected tools")
+	}
+
+	// First tool should have Korean description
+	firstTool := tools[0].(map[string]interface{})
+	desc := firstTool["description"].(string)
+	// Korean description should NOT be the English one
+	if desc == "List all configured backend A2A agents and their current health status." {
+		t.Error("expected Korean description, got English")
+	}
+}
+
+func TestI18n_DefaultEnglish(t *testing.T) {
+	_, srv := newTestServer(t, "")
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "tools/list",
+	}, "")
+
+	result := resp.Result.(map[string]interface{})
+	tools := result["tools"].([]interface{})
+	firstTool := tools[0].(map[string]interface{})
+	desc := firstTool["description"].(string)
+	if desc != "List all configured backend A2A agents and their current health status." {
+		t.Errorf("expected English description, got %q", desc)
+	}
+}
+
+func TestI18n_KoreanErrorMessage(t *testing.T) {
+	bridge := defaultMockBridge()
+	logger := newNopLogger()
+	bundle := testBundle(t)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0, Token: "secret"}, bridge, logger, bundle)
+	httpSrv := httptest.NewServer(http.HandlerFunc(srv.handleRPC))
+	defer httpSrv.Close()
+
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "tools/list",
+	})
+	req, _ := http.NewRequest(http.MethodPost, httpSrv.URL, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Language", "ko")
+	req.Header.Set("Authorization", "Bearer wrong-token")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var rpcResp jsonRPCResponse
+	json.NewDecoder(resp.Body).Decode(&rpcResp)
+	if rpcResp.Error == nil {
+		t.Fatal("expected error for invalid token")
+	}
+	// Korean error message should NOT be the English one
+	if rpcResp.Error.Message == "Unauthorized: invalid Bearer token" {
+		t.Error("expected Korean error message, got English")
+	}
+}
+
+func TestI18n_KoreanResourcesList(t *testing.T) {
+	bridge := defaultMockBridge()
+	logger := newNopLogger()
+	bundle := testBundle(t)
+	srv := NewServer(Config{Host: "127.0.0.1", Port: 0}, bridge, logger, bundle)
+	httpSrv := httptest.NewServer(http.HandlerFunc(srv.handleRPC))
+	defer httpSrv.Close()
+
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "resources/list",
+	})
+	req, _ := http.NewRequest(http.MethodPost, httpSrv.URL, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Language", "ko")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var rpcResp jsonRPCResponse
+	json.NewDecoder(resp.Body).Decode(&rpcResp)
+	if rpcResp.Error != nil {
+		t.Fatalf("unexpected error: %+v", rpcResp.Error)
+	}
+
+	result := rpcResp.Result.(map[string]interface{})
+	resources := result["resources"].([]interface{})
+	firstRes := resources[0].(map[string]interface{})
+	name := firstRes["name"].(string)
+	// Korean name should NOT be the English one
+	if name == "Sentinel Configuration" {
+		t.Error("expected Korean resource name, got English")
 	}
 }

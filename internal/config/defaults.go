@@ -106,6 +106,11 @@ func ApplyDefaults(cfg *Config) {
 	// ── Reload ──
 	applyReloadDefaults(&cfg.Reload)
 
+	// ── Locale ──
+	if cfg.Locale.Default == "" {
+		cfg.Locale.Default = "en"
+	}
+
 	// ── Per-Agent defaults ──
 	for i := range cfg.Agents {
 		applyAgentDefaults(&cfg.Agents[i])

@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+
+	"github.com/raeseoklee/a2a-sentinel/internal/i18n"
 )
 
 // Config holds MCP server configuration.
@@ -31,6 +33,7 @@ type Server struct {
 	listener   net.Listener // if non-nil, Start uses this instead of creating one
 	logger     *slog.Logger
 	sessions   sync.Map // sessionID (string) -> struct{}
+	bundle     *i18n.Bundle
 }
 
 // jsonRPCRequest is a minimal JSON-RPC 2.0 request envelope.
@@ -56,13 +59,15 @@ type rpcError struct {
 }
 
 // NewServer creates an MCP server from configuration.
-func NewServer(cfg Config, bridge SentinelBridge, logger *slog.Logger) *Server {
+// bundle provides i18n translations for tool descriptions and error messages.
+func NewServer(cfg Config, bridge SentinelBridge, logger *slog.Logger, bundle *i18n.Bundle) *Server {
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	return &Server{
 		bridge: bridge,
 		addr:   addr,
 		token:  cfg.Token,
 		logger: logger,
+		bundle: bundle,
 	}
 }
 
@@ -142,9 +147,12 @@ func isNotification(req jsonRPCRequest) bool {
 
 // handleRPC is the single HTTP endpoint that processes all JSON-RPC requests.
 func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
+	// Create localizer from Accept-Language header for i18n support.
+	localizer := s.bundle.NewLocalizer(r.Header.Get("Accept-Language"))
+
 	// Only POST is valid for JSON-RPC over Streamable HTTP.
 	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		http.Error(w, localizer.T(i18n.ErrMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -161,7 +169,7 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnauthorized)
 				json.NewEncoder(w).Encode(jsonRPCResponse{
 					JSONRPC: "2.0",
-					Error:   &rpcError{Code: -32001, Message: "Unauthorized: invalid Bearer token"},
+					Error:   &rpcError{Code: -32001, Message: localizer.T(i18n.ErrUnauthorizedInvalidToken)},
 				})
 				return
 			}
@@ -174,7 +182,7 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(jsonRPCResponse{
 			JSONRPC: "2.0",
-			Error:   &rpcError{Code: -32700, Message: "Parse error"},
+			Error:   &rpcError{Code: -32700, Message: localizer.T(i18n.ErrParseError)},
 		})
 		return
 	}
@@ -191,12 +199,12 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 				return false // stop iteration
 			})
 			if hasSession {
-				http.Error(w, "Bad Request: Mcp-Session-Id header required", http.StatusBadRequest)
+				http.Error(w, localizer.T(i18n.ErrSessionRequired), http.StatusBadRequest)
 				return
 			}
 		} else {
 			if _, ok := s.sessions.Load(sessionID); !ok {
-				http.Error(w, "Session not found", http.StatusNotFound)
+				http.Error(w, localizer.T(i18n.ErrSessionNotFound), http.StatusNotFound)
 				return
 			}
 		}
@@ -208,7 +216,7 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := s.dispatch(req, authenticated)
+	resp := s.dispatch(req, authenticated, localizer)
 
 	// If this is an initialize response, generate and attach session ID.
 	if req.Method == "initialize" && resp.Error == nil {
@@ -223,23 +231,24 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 
 // dispatch routes a JSON-RPC request to the appropriate handler.
 // authenticated indicates whether the caller provided a valid Bearer token.
-func (s *Server) dispatch(req jsonRPCRequest, authenticated bool) jsonRPCResponse {
+// l provides localized translations for user-facing messages.
+func (s *Server) dispatch(req jsonRPCRequest, authenticated bool, l *i18n.Localizer) jsonRPCResponse {
 	switch req.Method {
 	case "initialize":
 		return s.handleInitialize(req)
 	case "tools/list":
-		return s.handleToolsList(req, authenticated)
+		return s.handleToolsList(req, authenticated, l)
 	case "tools/call":
-		return s.handleToolsCall(req, authenticated)
+		return s.handleToolsCall(req, authenticated, l)
 	case "resources/list":
-		return s.handleResourcesList(req)
+		return s.handleResourcesList(req, l)
 	case "resources/read":
-		return s.handleResourcesRead(req)
+		return s.handleResourcesRead(req, l)
 	default:
 		return jsonRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
-			Error:   &rpcError{Code: -32601, Message: fmt.Sprintf("method not found: %s", req.Method)},
+			Error:   &rpcError{Code: -32601, Message: l.Tf(i18n.ErrMethodNotFound, req.Method)},
 		}
 	}
 }
@@ -280,13 +289,14 @@ func (s *Server) handleInitialize(req jsonRPCRequest) jsonRPCResponse {
 	}
 }
 
-// toolsList is the fixed list of tools exposed by the MCP server.
-func toolsList() []toolDefinition {
+// toolsList returns the fixed list of tools exposed by the MCP server.
+// l provides localized translations for tool and parameter descriptions.
+func toolsList(l *i18n.Localizer) []toolDefinition {
 	return []toolDefinition{
 		// Read tools
 		{
 			Name:        "list_agents",
-			Description: "List all configured backend A2A agents and their current health status.",
+			Description: l.T(i18n.ToolListAgentsDesc),
 			InputSchema: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
@@ -294,7 +304,7 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "health_check",
-			Description: "Return overall system health including active streams and uptime.",
+			Description: l.T(i18n.ToolHealthCheckDesc),
 			InputSchema: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
@@ -302,30 +312,30 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "get_blocked_requests",
-			Description: "Retrieve requests blocked by the security pipeline within a time window.",
+			Description: l.T(i18n.ToolGetBlockedRequestsDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"since": map[string]any{
 						"type":        "string",
-						"description": "RFC3339 timestamp to filter from (optional, defaults to last hour)",
+						"description": l.T(i18n.ParamSinceDesc),
 					},
 					"limit": map[string]any{
 						"type":        "integer",
-						"description": "Maximum number of results to return (optional, defaults to 100)",
+						"description": l.T(i18n.ParamLimitDesc),
 					},
 				},
 			},
 		},
 		{
 			Name:        "get_agent_card",
-			Description: "Retrieve the Agent Card for a specific backend agent.",
+			Description: l.T(i18n.ToolGetAgentCardDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"agent_name": map[string]any{
 						"type":        "string",
-						"description": "Name of the agent whose card to retrieve",
+						"description": l.T(i18n.ParamAgentNameCardDesc),
 					},
 				},
 				"required": []string{"agent_name"},
@@ -333,7 +343,7 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "get_aggregated_card",
-			Description: "Retrieve the aggregated Agent Card published by the sentinel gateway.",
+			Description: l.T(i18n.ToolGetAggregatedCardDesc),
 			InputSchema: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
@@ -341,7 +351,7 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "get_rate_limit_status",
-			Description: "Retrieve current rate-limit status for all agents.",
+			Description: l.T(i18n.ToolGetRateLimitStatusDesc),
 			InputSchema: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
@@ -350,17 +360,17 @@ func toolsList() []toolDefinition {
 		// Write tools
 		{
 			Name:        "update_rate_limit",
-			Description: "Update the rate limit (requests per minute) for a specific agent.",
+			Description: l.T(i18n.ToolUpdateRateLimitDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"agent_name": map[string]any{
 						"type":        "string",
-						"description": "Name of the agent to update",
+						"description": l.T(i18n.ParamAgentNameDesc),
 					},
 					"per_minute": map[string]any{
 						"type":        "integer",
-						"description": "New requests-per-minute limit",
+						"description": l.T(i18n.ParamPerMinuteDesc),
 					},
 				},
 				"required": []string{"agent_name", "per_minute"},
@@ -368,21 +378,21 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "register_agent",
-			Description: "Register a new backend A2A agent with the gateway.",
+			Description: l.T(i18n.ToolRegisterAgentDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"name": map[string]any{
 						"type":        "string",
-						"description": "Unique name for the agent",
+						"description": l.T(i18n.ParamNameDesc),
 					},
 					"url": map[string]any{
 						"type":        "string",
-						"description": "Backend URL of the agent",
+						"description": l.T(i18n.ParamURLDesc),
 					},
 					"default": map[string]any{
 						"type":        "boolean",
-						"description": "Whether this agent should be the default route (optional)",
+						"description": l.T(i18n.ParamDefaultDesc),
 					},
 				},
 				"required": []string{"name", "url"},
@@ -390,13 +400,13 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "deregister_agent",
-			Description: "Remove a backend A2A agent from the gateway.",
+			Description: l.T(i18n.ToolDeregisterAgentDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"name": map[string]any{
 						"type":        "string",
-						"description": "Name of the agent to remove",
+						"description": l.T(i18n.ParamNameDesc),
 					},
 				},
 				"required": []string{"name"},
@@ -404,17 +414,17 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "send_test_message",
-			Description: "Send a test message to a specific agent and return the response.",
+			Description: l.T(i18n.ToolSendTestMessageDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"agent_name": map[string]any{
 						"type":        "string",
-						"description": "Name of the agent to test",
+						"description": l.T(i18n.ParamAgentNameDesc),
 					},
 					"text": map[string]any{
 						"type":        "string",
-						"description": "Text content of the test message",
+						"description": l.T(i18n.ParamTextDesc),
 					},
 				},
 				"required": []string{"agent_name", "text"},
@@ -423,7 +433,7 @@ func toolsList() []toolDefinition {
 		// Policy tools
 		{
 			Name:        "list_policies",
-			Description: "List all configured ABAC access control policies and their match conditions.",
+			Description: l.T(i18n.ToolListPoliciesDesc),
 			InputSchema: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
@@ -431,25 +441,25 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "evaluate_policy",
-			Description: "Evaluate what policy decision would be made for a given set of request attributes.",
+			Description: l.T(i18n.ToolEvaluatePolicyDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"agent": map[string]any{
 						"type":        "string",
-						"description": "Agent name to evaluate against",
+						"description": l.T(i18n.ParamAgentDesc),
 					},
 					"method": map[string]any{
 						"type":        "string",
-						"description": "A2A method (e.g. message/send)",
+						"description": l.T(i18n.ParamMethodDesc),
 					},
 					"user": map[string]any{
 						"type":        "string",
-						"description": "Authenticated user/subject",
+						"description": l.T(i18n.ParamUserDesc),
 					},
 					"ip": map[string]any{
 						"type":        "string",
-						"description": "Client IP address",
+						"description": l.T(i18n.ParamIPDesc),
 					},
 				},
 			},
@@ -457,7 +467,7 @@ func toolsList() []toolDefinition {
 		// Card change approval tools
 		{
 			Name:        "list_pending_changes",
-			Description: "List all pending Agent Card changes awaiting approval.",
+			Description: l.T(i18n.ToolListPendingChangesDesc),
 			InputSchema: map[string]any{
 				"type":       "object",
 				"properties": map[string]any{},
@@ -465,13 +475,13 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "approve_card_change",
-			Description: "Approve a pending Agent Card change and apply the new card.",
+			Description: l.T(i18n.ToolApproveCardChangeDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"agent_name": map[string]any{
 						"type":        "string",
-						"description": "Name of the agent whose card change to approve",
+						"description": l.T(i18n.ParamAgentNameCardDesc),
 					},
 				},
 				"required": []string{"agent_name"},
@@ -479,13 +489,13 @@ func toolsList() []toolDefinition {
 		},
 		{
 			Name:        "reject_card_change",
-			Description: "Reject a pending Agent Card change, keeping the old card.",
+			Description: l.T(i18n.ToolRejectCardChangeDesc),
 			InputSchema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
 					"agent_name": map[string]any{
 						"type":        "string",
-						"description": "Name of the agent whose card change to reject",
+						"description": l.T(i18n.ParamAgentNameCardDesc),
 					},
 				},
 				"required": []string{"agent_name"},
@@ -496,8 +506,8 @@ func toolsList() []toolDefinition {
 
 // handleToolsList returns the list of available tools.
 // Anonymous sessions only see read tools; authenticated sessions see all tools.
-func (s *Server) handleToolsList(req jsonRPCRequest, authenticated bool) jsonRPCResponse {
-	all := toolsList()
+func (s *Server) handleToolsList(req jsonRPCRequest, authenticated bool, l *i18n.Localizer) jsonRPCResponse {
+	all := toolsList(l)
 	if authenticated || s.token == "" {
 		// Authenticated or no token configured: return all tools.
 		return jsonRPCResponse{
@@ -543,52 +553,53 @@ type resourceContent struct {
 }
 
 // resourcesList returns the fixed list of resources exposed by the MCP server.
-func resourcesList() []resourceDefinition {
+// l provides localized translations for resource names and descriptions.
+func resourcesList(l *i18n.Localizer) []resourceDefinition {
 	return []resourceDefinition{
 		{
 			URI:         "sentinel://config",
-			Name:        "Sentinel Configuration",
-			Description: "Current gateway configuration with secrets masked.",
+			Name:        l.T(i18n.ResConfigName),
+			Description: l.T(i18n.ResConfigDesc),
 			MimeType:    "application/json",
 		},
 		{
 			URI:         "sentinel://metrics",
-			Name:        "Request Metrics",
-			Description: "Basic request metrics including total requests, blocked count, active streams, and uptime.",
+			Name:        l.T(i18n.ResMetricsName),
+			Description: l.T(i18n.ResMetricsDesc),
 			MimeType:    "application/json",
 		},
 		{
 			URI:         "sentinel://agents/{name}",
-			Name:        "Agent Detail",
-			Description: "Per-agent detail including status, card, and skills. Replace {name} with agent name.",
+			Name:        l.T(i18n.ResAgentDetailName),
+			Description: l.T(i18n.ResAgentDetailDesc),
 			MimeType:    "application/json",
 		},
 		{
 			URI:         "sentinel://security/report",
-			Name:        "Security Report",
-			Description: "Security summary including auth mode, rate limit status, and recent blocks count.",
+			Name:        l.T(i18n.ResSecurityName),
+			Description: l.T(i18n.ResSecurityDesc),
 			MimeType:    "application/json",
 		},
 	}
 }
 
 // handleResourcesList returns the list of available resources.
-func (s *Server) handleResourcesList(req jsonRPCRequest) jsonRPCResponse {
+func (s *Server) handleResourcesList(req jsonRPCRequest, l *i18n.Localizer) jsonRPCResponse {
 	return jsonRPCResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
-		Result:  map[string]any{"resources": resourcesList()},
+		Result:  map[string]any{"resources": resourcesList(l)},
 	}
 }
 
 // handleResourcesRead reads a specific resource by URI.
-func (s *Server) handleResourcesRead(req jsonRPCRequest) jsonRPCResponse {
+func (s *Server) handleResourcesRead(req jsonRPCRequest, l *i18n.Localizer) jsonRPCResponse {
 	var params resourceReadParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return jsonRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
-			Error:   &rpcError{Code: -32602, Message: "invalid params: " + err.Error()},
+			Error:   &rpcError{Code: -32602, Message: l.Tf(i18n.ErrInvalidParams, err.Error())},
 		}
 	}
 
@@ -608,7 +619,7 @@ func (s *Server) handleResourcesRead(req jsonRPCRequest) jsonRPCResponse {
 			return jsonRPCResponse{
 				JSONRPC: "2.0",
 				ID:      req.ID,
-				Error:   &rpcError{Code: -32602, Message: "agent name required in URI: sentinel://agents/{name}"},
+				Error:   &rpcError{Code: -32602, Message: l.T(i18n.ErrAgentNameRequiredInURI)},
 			}
 		}
 		data, err = s.bridge.GetAgentCard(agentName)
@@ -616,14 +627,14 @@ func (s *Server) handleResourcesRead(req jsonRPCRequest) jsonRPCResponse {
 			return jsonRPCResponse{
 				JSONRPC: "2.0",
 				ID:      req.ID,
-				Error:   &rpcError{Code: -32603, Message: "internal error: " + err.Error()},
+				Error:   &rpcError{Code: -32603, Message: l.Tf(i18n.ErrInternalError, err.Error())},
 			}
 		}
 	default:
 		return jsonRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
-			Error:   &rpcError{Code: -32602, Message: fmt.Sprintf("unknown resource URI: %s", params.URI)},
+			Error:   &rpcError{Code: -32602, Message: l.Tf(i18n.ErrUnknownResourceURI, params.URI)},
 		}
 	}
 
@@ -632,7 +643,7 @@ func (s *Server) handleResourcesRead(req jsonRPCRequest) jsonRPCResponse {
 		return jsonRPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
-			Error:   &rpcError{Code: -32603, Message: "internal error: " + err.Error()},
+			Error:   &rpcError{Code: -32603, Message: l.Tf(i18n.ErrInternalError, err.Error())},
 		}
 	}
 

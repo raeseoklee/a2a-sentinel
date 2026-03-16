@@ -20,6 +20,7 @@ import (
 	sentinelerrors "github.com/raeseoklee/a2a-sentinel/internal/errors"
 	sentinelgrpc "github.com/raeseoklee/a2a-sentinel/internal/grpc"
 	"github.com/raeseoklee/a2a-sentinel/internal/health"
+	"github.com/raeseoklee/a2a-sentinel/internal/i18n"
 	"github.com/raeseoklee/a2a-sentinel/internal/mcpserver"
 	"github.com/raeseoklee/a2a-sentinel/internal/protocol"
 	"github.com/raeseoklee/a2a-sentinel/internal/proxy"
@@ -197,7 +198,11 @@ func New(cfg *config.Config, version string) (*Server, error) {
 			Port:    cfg.MCP.Port,
 			Token:   cfg.MCP.Auth.Token,
 		}
-		srv.mcpServer = mcpserver.NewServer(mcpCfg, bridge, logger)
+		bundle, err := i18n.NewBundle("en")
+		if err != nil {
+			return nil, fmt.Errorf("creating i18n bundle: %w", err)
+		}
+		srv.mcpServer = mcpserver.NewServer(mcpCfg, bridge, logger, bundle)
 		logger.Info("MCP server configured", "host", cfg.MCP.Host, "port", cfg.MCP.Port)
 	}
 
