@@ -4,6 +4,8 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/raeseoklee/a2a-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/raeseoklee/a2a-sentinel/actions/workflows/ci.yml)
 
+**[English](README.md)** | [한국어](docs/ko/README.ko.md)
+
 **A lightweight, security-first A2A gateway in Go.**
 
 Develop with sentinel, deploy with agentgateway. Zero agent code changes.
@@ -663,6 +665,12 @@ See [docs/MIGRATION.md](docs/MIGRATION.md) for the full migration guide.
 - **Migration guide**: [docs/MIGRATION.md](docs/MIGRATION.md)
 - **Changelog**: [CHANGELOG.md](CHANGELOG.md)
 - **A2A Protocol spec**: https://a2a-protocol.org/latest/specification/
+
+### 한국어 문서
+
+- **프로젝트 소개**: [docs/ko/README.ko.md](docs/ko/README.ko.md)
+- **아키텍처 설계**: [docs/ko/ARCHITECTURE.ko.md](docs/ko/ARCHITECTURE.ko.md)
+- **보안 가이드**: [docs/ko/SECURITY.ko.md](docs/ko/SECURITY.ko.md)
 
 ### Issues & Feedback
 
