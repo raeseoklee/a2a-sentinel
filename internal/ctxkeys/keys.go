@@ -5,6 +5,8 @@ package ctxkeys
 import (
 	"context"
 	"time"
+
+	"github.com/raeseoklee/a2a-sentinel/internal/i18n"
 )
 
 // ── Key types (unexported, collision-proof) ──
@@ -14,6 +16,7 @@ type auditEntryKey struct{}
 type routeResultKey struct{}
 type requestMetaKey struct{}
 type inspectedBodyKey struct{} // v3: Body Inspection result
+type localizerKey struct{}     // i18n Localizer
 
 // ── Data types ──
 
@@ -112,4 +115,16 @@ func WithInspectedBody(ctx context.Context, body []byte) context.Context {
 func InspectedBodyFrom(ctx context.Context) ([]byte, bool) {
 	body, ok := ctx.Value(inspectedBodyKey{}).([]byte)
 	return body, ok
+}
+
+// WithLocalizer stores an i18n Localizer in the context.
+func WithLocalizer(ctx context.Context, l *i18n.Localizer) context.Context {
+	return context.WithValue(ctx, localizerKey{}, l)
+}
+
+// LocalizerFrom retrieves the i18n Localizer from the context.
+// Returns nil if not set.
+func LocalizerFrom(ctx context.Context) *i18n.Localizer {
+	l, _ := ctx.Value(localizerKey{}).(*i18n.Localizer)
+	return l
 }

@@ -5,6 +5,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/raeseoklee/a2a-sentinel/internal/i18n"
 )
 
 func TestSentinelErrorWithHint(t *testing.T) {
@@ -298,5 +300,99 @@ func TestToJSONRPCError_502Mapping(t *testing.T) {
 	rpcErr := ToJSONRPCError(err, "req-502")
 	if rpcErr.Error.Code != -32603 {
 		t.Errorf("expected -32603 for HTTP 502, got %d", rpcErr.Error.Code)
+	}
+}
+
+func TestSentinelError_Localize(t *testing.T) {
+	bundle, err := i18n.NewBundle("en")
+	if err != nil {
+		t.Fatalf("NewBundle: %v", err)
+	}
+
+	// Korean localizer
+	l := bundle.NewLocalizer("ko")
+	localized := ErrAuthRequired.Localize(l)
+
+	if localized.Message == "Authentication required" {
+		t.Error("expected Korean message, got English")
+	}
+	if localized.Message != "인증이 필요합니다" {
+		t.Errorf("Message = %q, want Korean translation", localized.Message)
+	}
+	if localized.Code != 401 {
+		t.Errorf("Code = %d, want 401", localized.Code)
+	}
+	if localized.DocsURL != ErrAuthRequired.DocsURL {
+		t.Errorf("DocsURL = %q, want %q", localized.DocsURL, ErrAuthRequired.DocsURL)
+	}
+}
+
+func TestSentinelError_Localize_Nil(t *testing.T) {
+	result := ErrAuthRequired.Localize(nil)
+	if result != ErrAuthRequired {
+		t.Error("nil localizer should return original error pointer")
+	}
+}
+
+func TestSentinelError_Localize_English(t *testing.T) {
+	bundle, err := i18n.NewBundle("en")
+	if err != nil {
+		t.Fatalf("NewBundle: %v", err)
+	}
+	l := bundle.NewLocalizer("en")
+	localized := ErrAuthRequired.Localize(l)
+
+	if localized.Message != "Authentication required" {
+		t.Errorf("Message = %q, want %q", localized.Message, "Authentication required")
+	}
+	if localized.Hint != "Set Authorization header: 'Bearer <token>'" {
+		t.Errorf("Hint = %q, want English hint", localized.Hint)
+	}
+}
+
+func TestSentinelError_Localize_AllErrors(t *testing.T) {
+	bundle, err := i18n.NewBundle("en")
+	if err != nil {
+		t.Fatalf("NewBundle: %v", err)
+	}
+	l := bundle.NewLocalizer("ko")
+
+	allErrors := []*SentinelError{
+		ErrAuthRequired, ErrAuthInvalid, ErrForbidden, ErrRateLimited,
+		ErrAgentUnavailable, ErrStreamLimitExceeded, ErrReplayDetected,
+		ErrSSRFBlocked, ErrInvalidRequest, ErrNoRoute, ErrGlobalLimitReached,
+	}
+
+	for _, se := range allErrors {
+		localized := se.Localize(l)
+		if localized.Code != se.Code {
+			t.Errorf("%q: Code = %d, want %d", se.Message, localized.Code, se.Code)
+		}
+		if localized.DocsURL != se.DocsURL {
+			t.Errorf("%q: DocsURL mismatch", se.Message)
+		}
+		// Korean translations should differ from English originals
+		if localized.Message == se.Message {
+			t.Errorf("%q: expected localized message to differ from English", se.Message)
+		}
+		if localized.Hint == se.Hint {
+			t.Errorf("%q: expected localized hint to differ from English", se.Message)
+		}
+	}
+}
+
+func TestSentinelError_Localize_PreservesErrorInterface(t *testing.T) {
+	bundle, err := i18n.NewBundle("en")
+	if err != nil {
+		t.Fatalf("NewBundle: %v", err)
+	}
+	l := bundle.NewLocalizer("ko")
+	localized := ErrRateLimited.Localize(l)
+
+	// The localized error should still implement error interface
+	var _ error = localized
+	errStr := localized.Error()
+	if errStr == "" {
+		t.Error("Error() should return non-empty string")
 	}
 }

@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/raeseoklee/a2a-sentinel/internal/i18n"
 )
 
 func TestAuthInfoRoundTrip(t *testing.T) {
@@ -228,6 +230,30 @@ func TestInspectedBodyFromEmptyContext(t *testing.T) {
 	}
 }
 
+func TestLocalizerRoundTrip(t *testing.T) {
+	bundle, err := i18n.NewBundle("en")
+	if err != nil {
+		t.Fatalf("NewBundle: %v", err)
+	}
+	l := bundle.NewLocalizer("ko")
+
+	ctx := WithLocalizer(context.Background(), l)
+	got := LocalizerFrom(ctx)
+	if got == nil {
+		t.Fatal("expected non-nil Localizer")
+	}
+	if got.Lang() != "ko" {
+		t.Errorf("Lang() = %q, want %q", got.Lang(), "ko")
+	}
+}
+
+func TestLocalizerFromEmptyContext(t *testing.T) {
+	got := LocalizerFrom(context.Background())
+	if got != nil {
+		t.Errorf("expected nil, got %+v", got)
+	}
+}
+
 func TestKeysDontInterfere(t *testing.T) {
 	authInfo := AuthInfo{Mode: "terminate", Subject: "user@test.com", Scheme: "bearer", SubjectVerified: true}
 	entry := &AuditEntry{TraceID: "t-1", Method: "message/send"}
@@ -235,12 +261,19 @@ func TestKeysDontInterfere(t *testing.T) {
 	meta := RequestMeta{Protocol: "jsonrpc", Method: "message/send", Binding: "jsonrpc"}
 	body := []byte(`{"test":true}`)
 
+	bundle, err := i18n.NewBundle("en")
+	if err != nil {
+		t.Fatalf("NewBundle: %v", err)
+	}
+	localizer := bundle.NewLocalizer("ko")
+
 	ctx := context.Background()
 	ctx = WithAuthInfo(ctx, authInfo)
 	ctx = WithAuditEntry(ctx, entry)
 	ctx = WithRouteResult(ctx, route)
 	ctx = WithRequestMeta(ctx, meta)
 	ctx = WithInspectedBody(ctx, body)
+	ctx = WithLocalizer(ctx, localizer)
 
 	// Verify each key retrieves its own value
 	gotAuth, ok := AuthInfoFrom(ctx)
@@ -266,5 +299,12 @@ func TestKeysDontInterfere(t *testing.T) {
 	gotBody, ok := InspectedBodyFrom(ctx)
 	if !ok || string(gotBody) != string(body) {
 		t.Errorf("InspectedBody: got %q, want %q", gotBody, body)
+	}
+
+	gotLocalizer := LocalizerFrom(ctx)
+	if gotLocalizer == nil {
+		t.Error("Localizer: expected non-nil")
+	} else if gotLocalizer.Lang() != "ko" {
+		t.Errorf("Localizer.Lang(): got %q, want %q", gotLocalizer.Lang(), "ko")
 	}
 }

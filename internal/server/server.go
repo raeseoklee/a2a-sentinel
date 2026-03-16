@@ -56,6 +56,7 @@ type Server struct {
 	metrics       *audit.Metrics
 	logger        *slog.Logger
 	version       string
+	bundle        *i18n.Bundle // i18n bundle shared by gateway and MCP server
 }
 
 // agentLookupAdapter adapts cardStarter to router.AgentLookup interface.
@@ -167,6 +168,12 @@ func New(cfg *config.Config, version string) (*Server, error) {
 	}
 	healthHandler := health.NewHandler(healthChecker, version, cfg.Health.ReadinessMode, defaultAgent)
 
+	// 9b. Create i18n bundle (shared by gateway middleware and MCP server)
+	bundle, err := i18n.NewBundle("en")
+	if err != nil {
+		return nil, fmt.Errorf("creating i18n bundle: %w", err)
+	}
+
 	srv := &Server{
 		cfg:           cfg,
 		cardManager:   cardManager,
@@ -179,6 +186,7 @@ func New(cfg *config.Config, version string) (*Server, error) {
 		metrics:       metrics,
 		logger:        logger,
 		version:       version,
+		bundle:        bundle,
 	}
 
 	// 10. Create gRPC server if grpc_port is configured
@@ -197,10 +205,6 @@ func New(cfg *config.Config, version string) (*Server, error) {
 			Host:    cfg.MCP.Host,
 			Port:    cfg.MCP.Port,
 			Token:   cfg.MCP.Auth.Token,
-		}
-		bundle, err := i18n.NewBundle("en")
-		if err != nil {
-			return nil, fmt.Errorf("creating i18n bundle: %w", err)
 		}
 		srv.mcpServer = mcpserver.NewServer(mcpCfg, bridge, logger, bundle)
 		logger.Info("MCP server configured", "host", cfg.MCP.Host, "port", cfg.MCP.Port)
@@ -333,6 +337,16 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// localizerMiddleware injects an i18n Localizer into the request context
+// based on the Accept-Language header. This runs before all other handlers.
+func (s *Server) localizerMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		localizer := s.bundle.NewLocalizer(r.Header.Get("Accept-Language"))
+		ctx := ctxkeys.WithLocalizer(r.Context(), localizer)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 // handler builds the complete HTTP handler with security pipeline and routing.
 func (s *Server) handler() http.Handler {
 	// Main request handler (behind security pipeline)
@@ -346,7 +360,7 @@ func (s *Server) handler() http.Handler {
 		// Protocol detection
 		result, err := protocol.Detect(r)
 		if err != nil {
-			sentinelerrors.WriteHTTPError(w, sentinelerrors.ErrInvalidRequest)
+			sentinelerrors.WriteHTTPError(w, sentinelerrors.ErrInvalidRequest.Localize(ctxkeys.LocalizerFrom(r.Context())))
 			return
 		}
 
@@ -417,7 +431,8 @@ func (s *Server) handler() http.Handler {
 	// Everything else goes through security
 	mux.Handle("/", securedHandler)
 
-	return mux
+	// Wrap entire mux with localizer middleware so all handlers have access
+	return s.localizerMiddleware(mux)
 }
 
 // handleAgentCard serves the aggregated Agent Card.
@@ -433,6 +448,9 @@ func (s *Server) writeError(w http.ResponseWriter, r *http.Request, err error) {
 	if !ok {
 		sentErr = sentinelerrors.ErrAgentUnavailable
 	}
+
+	// Localize the error message and hint for the request's language.
+	sentErr = sentErr.Localize(ctxkeys.LocalizerFrom(r.Context()))
 
 	meta, hasMeta := ctxkeys.RequestMetaFrom(r.Context())
 	if hasMeta && meta.Protocol == string(protocol.ProtocolJSONRPC) {
