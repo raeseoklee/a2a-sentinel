@@ -52,7 +52,8 @@ func isWriteTool(name string) bool {
 }
 
 // handleToolsCall dispatches a tools/call request to the correct tool handler.
-func (s *Server) handleToolsCall(req jsonRPCRequest) jsonRPCResponse {
+// authenticated indicates whether the caller provided a valid Bearer token.
+func (s *Server) handleToolsCall(req jsonRPCRequest, authenticated bool) jsonRPCResponse {
 	var params toolCallParams
 	if err := json.Unmarshal(req.Params, &params); err != nil {
 		return jsonRPCResponse{
@@ -62,12 +63,23 @@ func (s *Server) handleToolsCall(req jsonRPCRequest) jsonRPCResponse {
 		}
 	}
 
-	// Write tools require an auth token to be configured.
-	if isWriteTool(params.Name) && s.token == "" {
-		return jsonRPCResponse{
-			JSONRPC: "2.0",
-			ID:      req.ID,
-			Error:   &rpcError{Code: -32001, Message: "MCP auth token required for write operations"},
+	// Write tools are gated by token at the tool level.
+	if isWriteTool(params.Name) {
+		if s.token == "" {
+			// No token configured — write operations are disabled.
+			return jsonRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &rpcError{Code: -32001, Message: "MCP auth token not configured: write operations are disabled"},
+			}
+		}
+		if !authenticated {
+			// Token configured but caller did not provide a valid token.
+			return jsonRPCResponse{
+				JSONRPC: "2.0",
+				ID:      req.ID,
+				Error:   &rpcError{Code: -32001, Message: "Unauthorized: valid Bearer token required for write operations"},
+			}
 		}
 	}
 

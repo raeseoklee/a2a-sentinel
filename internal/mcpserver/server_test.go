@@ -1511,8 +1511,8 @@ func TestWriteTool_NoTokenConfigured_Rejected(t *testing.T) {
 			if resp.Error.Code != -32001 {
 				t.Errorf("expected code -32001, got %d", resp.Error.Code)
 			}
-			if !strings.Contains(resp.Error.Message, "MCP auth token required") {
-				t.Errorf("expected auth token error message, got %q", resp.Error.Message)
+			if !strings.Contains(resp.Error.Message, "not configured") {
+				t.Errorf("expected 'not configured' message, got %q", resp.Error.Message)
 			}
 		})
 	}
@@ -1588,51 +1588,6 @@ func TestDispatch_UnknownMethod_ReturnsError(t *testing.T) {
 
 // ── auth: token required ──────────────────────────────────────────────────────
 
-func TestAuth_TokenRequired_NoToken_Rejected(t *testing.T) {
-	_, srv := newTestServer(t, "secret-token")
-
-	body, _ := json.Marshal(jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      11,
-		Method:  "tools/list",
-	})
-	httpReq, _ := http.NewRequest(http.MethodPost, srv.URL, bytes.NewReader(body))
-	httpReq.Header.Set("Content-Type", "application/json")
-	// No Authorization header.
-
-	httpResp, err := http.DefaultClient.Do(httpReq)
-	if err != nil {
-		t.Fatalf("do request: %v", err)
-	}
-	defer httpResp.Body.Close()
-
-	if httpResp.StatusCode != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", httpResp.StatusCode)
-	}
-
-	var rpcResp jsonRPCResponse
-	json.NewDecoder(httpResp.Body).Decode(&rpcResp)
-	if rpcResp.Error == nil {
-		t.Error("expected JSON-RPC error in body")
-	}
-}
-
-func TestAuth_TokenRequired_WrongToken_Rejected(t *testing.T) {
-	_, srv := newTestServer(t, "secret-token")
-
-	resp := postRPC(t, srv.URL, jsonRPCRequest{
-		JSONRPC: "2.0",
-		ID:      12,
-		Method:  "tools/list",
-	}, "wrong-token")
-
-	// The HTTP layer returns 401, but our postRPC helper reads the body regardless.
-	// Check there's an error in the JSON response.
-	if resp.Error == nil {
-		t.Error("expected JSON-RPC error for wrong token")
-	}
-}
-
 func TestAuth_TokenRequired_CorrectToken_Allowed(t *testing.T) {
 	_, srv := newTestServer(t, "secret-token")
 
@@ -1675,6 +1630,194 @@ func TestAuth_NoToken_BearerStillAllowed(t *testing.T) {
 
 	if resp.Error != nil {
 		t.Fatalf("unexpected error: %+v", resp.Error)
+	}
+}
+
+// ── auth: tool-level enforcement ──────────────────────────────────────────────
+
+func TestInitialize_WorksWithTokenConfigured_NoAuth(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "initialize",
+	}, "") // no token
+	if resp.Error != nil {
+		t.Fatalf("initialize should work without token, got: %+v", resp.Error)
+	}
+}
+
+func TestReadTool_WorksWithTokenConfigured_NoAuth(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	params, _ := json.Marshal(toolCallParams{Name: "list_agents"})
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      2,
+		Method:  "tools/call",
+		Params:  params,
+	}, "") // no token
+	if resp.Error != nil {
+		t.Fatalf("read tool should work without token, got: %+v", resp.Error)
+	}
+}
+
+func TestWriteTool_TokenConfigured_NoAuth_Rejected(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	rawArgs, _ := json.Marshal(map[string]interface{}{
+		"name":      "register_agent",
+		"arguments": map[string]interface{}{"name": "test", "url": "http://test.com"},
+	})
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      3,
+		Method:  "tools/call",
+		Params:  rawArgs,
+	}, "") // no token
+	if resp.Error == nil {
+		t.Fatal("write tool should require token")
+	}
+	if resp.Error.Code != -32001 {
+		t.Errorf("expected code -32001, got %d", resp.Error.Code)
+	}
+}
+
+func TestWriteTool_TokenConfigured_WrongToken_Rejected(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	rawArgs, _ := json.Marshal(map[string]interface{}{
+		"name":      "register_agent",
+		"arguments": map[string]interface{}{"name": "test", "url": "http://test.com"},
+	})
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      4,
+		Method:  "tools/call",
+		Params:  rawArgs,
+	}, "wrong-token")
+	if resp.Error == nil {
+		t.Fatal("write tool should reject wrong token")
+	}
+	if resp.Error.Code != -32001 {
+		t.Errorf("expected code -32001, got %d", resp.Error.Code)
+	}
+}
+
+func TestWriteTool_TokenConfigured_CorrectToken_Allowed(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	rawArgs, _ := json.Marshal(map[string]interface{}{
+		"name":      "register_agent",
+		"arguments": map[string]interface{}{"name": "new-agent", "url": "http://new.example.com"},
+	})
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      5,
+		Method:  "tools/call",
+		Params:  rawArgs,
+	}, "secret-token")
+	if resp.Error != nil {
+		t.Fatalf("write tool should work with correct token, got: %+v", resp.Error)
+	}
+}
+
+// ── invalid token rejection ───────────────────────────────────────────────────
+
+func TestInvalidToken_Returns401(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "initialize",
+	})
+	resp := postRPCRaw(t, srv.URL, body, "wrong-token", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 for invalid token, got %d", resp.StatusCode)
+	}
+}
+
+func TestInvalidToken_ReadTool_Returns401(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      2,
+		Method:  "tools/list",
+	})
+	resp := postRPCRaw(t, srv.URL, body, "wrong-token", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("expected 401 for invalid token on read, got %d", resp.StatusCode)
+	}
+}
+
+// ── tools/list filtering ─────────────────────────────────────────────────────
+
+func TestToolsList_Anonymous_ReturnsOnlyReadTools(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	// No token → anonymous
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "tools/list",
+	}, "")
+
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %+v", resp.Error)
+	}
+
+	result := resp.Result.(map[string]interface{})
+	tools := result["tools"].([]interface{})
+
+	// Should only contain read tools (9), no write tools (6)
+	if len(tools) != 9 {
+		t.Errorf("expected 9 read-only tools for anonymous, got %d", len(tools))
+	}
+	for _, tool := range tools {
+		name := tool.(map[string]interface{})["name"].(string)
+		if isWriteTool(name) {
+			t.Errorf("anonymous should not see write tool %q", name)
+		}
+	}
+}
+
+func TestToolsList_Authenticated_ReturnsAllTools(t *testing.T) {
+	_, srv := newTestServer(t, "secret-token")
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "tools/list",
+	}, "secret-token")
+
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %+v", resp.Error)
+	}
+
+	result := resp.Result.(map[string]interface{})
+	tools := result["tools"].([]interface{})
+
+	if len(tools) != 15 {
+		t.Errorf("expected 15 tools for authenticated, got %d", len(tools))
+	}
+}
+
+func TestToolsList_NoTokenConfigured_ReturnsAllTools(t *testing.T) {
+	_, srv := newTestServer(t, "") // no token configured
+	resp := postRPC(t, srv.URL, jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "tools/list",
+	}, "")
+
+	if resp.Error != nil {
+		t.Fatalf("unexpected error: %+v", resp.Error)
+	}
+
+	result := resp.Result.(map[string]interface{})
+	tools := result["tools"].([]interface{})
+
+	// No token configured: all tools visible (but writes blocked at call time)
+	if len(tools) != 15 {
+		t.Errorf("expected 15 tools when no token configured, got %d", len(tools))
 	}
 }
 

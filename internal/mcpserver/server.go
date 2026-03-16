@@ -148,18 +148,23 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Bearer token auth check.
+	// Three-state auth: no header → anonymous, valid → authenticated, invalid → reject.
+	authenticated := false
 	if s.token != "" {
 		authHeader := r.Header.Get("Authorization")
-		expected := "Bearer " + s.token
-		if !strings.EqualFold(strings.TrimSpace(authHeader), expected) {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(jsonRPCResponse{
-				JSONRPC: "2.0",
-				Error:   &rpcError{Code: -32001, Message: "Unauthorized: valid Bearer token required"},
-			})
-			return
+		if authHeader != "" {
+			expected := "Bearer " + s.token
+			if strings.EqualFold(strings.TrimSpace(authHeader), expected) {
+				authenticated = true
+			} else {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusUnauthorized)
+				json.NewEncoder(w).Encode(jsonRPCResponse{
+					JSONRPC: "2.0",
+					Error:   &rpcError{Code: -32001, Message: "Unauthorized: invalid Bearer token"},
+				})
+				return
+			}
 		}
 	}
 
@@ -203,7 +208,7 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := s.dispatch(req)
+	resp := s.dispatch(req, authenticated)
 
 	// If this is an initialize response, generate and attach session ID.
 	if req.Method == "initialize" && resp.Error == nil {
@@ -217,14 +222,15 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 }
 
 // dispatch routes a JSON-RPC request to the appropriate handler.
-func (s *Server) dispatch(req jsonRPCRequest) jsonRPCResponse {
+// authenticated indicates whether the caller provided a valid Bearer token.
+func (s *Server) dispatch(req jsonRPCRequest, authenticated bool) jsonRPCResponse {
 	switch req.Method {
 	case "initialize":
 		return s.handleInitialize(req)
 	case "tools/list":
-		return s.handleToolsList(req)
+		return s.handleToolsList(req, authenticated)
 	case "tools/call":
-		return s.handleToolsCall(req)
+		return s.handleToolsCall(req, authenticated)
 	case "resources/list":
 		return s.handleResourcesList(req)
 	case "resources/read":
@@ -489,11 +495,28 @@ func toolsList() []toolDefinition {
 }
 
 // handleToolsList returns the list of available tools.
-func (s *Server) handleToolsList(req jsonRPCRequest) jsonRPCResponse {
+// Anonymous sessions only see read tools; authenticated sessions see all tools.
+func (s *Server) handleToolsList(req jsonRPCRequest, authenticated bool) jsonRPCResponse {
+	all := toolsList()
+	if authenticated || s.token == "" {
+		// Authenticated or no token configured: return all tools.
+		return jsonRPCResponse{
+			JSONRPC: "2.0",
+			ID:      req.ID,
+			Result:  map[string]any{"tools": all},
+		}
+	}
+	// Anonymous with token configured: filter to read-only tools.
+	var filtered []toolDefinition
+	for _, t := range all {
+		if !isWriteTool(t.Name) {
+			filtered = append(filtered, t)
+		}
+	}
 	return jsonRPCResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
-		Result:  map[string]any{"tools": toolsList()},
+		Result:  map[string]any{"tools": filtered},
 	}
 }
 
