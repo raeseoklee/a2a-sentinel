@@ -394,8 +394,8 @@ func TestInitialize_ReturnsProtocolVersion(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected map result, got %T", resp.Result)
 	}
-	if result["protocolVersion"] == "" || result["protocolVersion"] == nil {
-		t.Error("expected non-empty protocolVersion")
+	if result["protocolVersion"] != "2025-11-25" {
+		t.Errorf("expected protocolVersion=2025-11-25, got %q", result["protocolVersion"])
 	}
 }
 
@@ -438,6 +438,198 @@ func TestInitialize_HasResourcesCapability(t *testing.T) {
 	}
 	if _, hasResources := caps["resources"]; !hasResources {
 		t.Error("expected capabilities.resources to be present")
+	}
+}
+
+// ── session management ────────────────────────────────────────────────────────
+
+// postRPCRaw sends a raw JSON-RPC request and returns the http.Response without
+// decoding the body. The caller is responsible for closing the body.
+func postRPCRaw(t *testing.T, url string, body []byte, token string, headers map[string]string) *http.Response {
+	t.Helper()
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("create request: %v", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+	if token != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+token)
+	}
+	for k, v := range headers {
+		httpReq.Header.Set(k, v)
+	}
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	return resp
+}
+
+// initializeAndGetSessionID sends an initialize request and returns the session ID.
+func initializeAndGetSessionID(t *testing.T, url, token string) string {
+	t.Helper()
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "initialize",
+	})
+	resp := postRPCRaw(t, url, body, token, nil)
+	defer resp.Body.Close()
+
+	sid := resp.Header.Get("Mcp-Session-Id")
+	if sid == "" {
+		t.Fatal("expected Mcp-Session-Id header in initialize response")
+	}
+	return sid
+}
+
+func TestInitialize_ReturnsMcpSessionId(t *testing.T) {
+	_, srv := newTestServer(t, "")
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      1,
+		Method:  "initialize",
+	})
+	resp := postRPCRaw(t, srv.URL, body, "", nil)
+	defer resp.Body.Close()
+
+	sid := resp.Header.Get("Mcp-Session-Id")
+	if sid == "" {
+		t.Fatal("expected Mcp-Session-Id header in initialize response")
+	}
+	if len(sid) != 32 { // 16 bytes hex-encoded = 32 chars
+		t.Errorf("expected 32-char hex session ID, got %d chars: %q", len(sid), sid)
+	}
+}
+
+func TestSessionId_RequiredAfterInitialize(t *testing.T) {
+	_, srv := newTestServer(t, "")
+
+	// First, establish a session via initialize.
+	_ = initializeAndGetSessionID(t, srv.URL, "")
+
+	// Now send a request without Mcp-Session-Id header — should get 400.
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      2,
+		Method:  "tools/list",
+	})
+	resp := postRPCRaw(t, srv.URL, body, "", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400 without session ID, got %d", resp.StatusCode)
+	}
+}
+
+func TestSessionId_InvalidReturns404(t *testing.T) {
+	_, srv := newTestServer(t, "")
+
+	// Establish a session.
+	_ = initializeAndGetSessionID(t, srv.URL, "")
+
+	// Send a request with an unknown session ID — should get 404.
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      2,
+		Method:  "tools/list",
+	})
+	resp := postRPCRaw(t, srv.URL, body, "", map[string]string{
+		"Mcp-Session-Id": "0000000000000000deadbeefcafebabe",
+	})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNotFound {
+		t.Errorf("expected 404 for unknown session ID, got %d", resp.StatusCode)
+	}
+}
+
+func TestSessionId_ValidSessionAllowsRequest(t *testing.T) {
+	_, srv := newTestServer(t, "")
+
+	sid := initializeAndGetSessionID(t, srv.URL, "")
+
+	// Send a request with valid session ID — should succeed.
+	body, _ := json.Marshal(jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      2,
+		Method:  "tools/list",
+	})
+	resp := postRPCRaw(t, srv.URL, body, "", map[string]string{
+		"Mcp-Session-Id": sid,
+	})
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("expected 200 with valid session ID, got %d", resp.StatusCode)
+	}
+}
+
+// ── notifications ─────────────────────────────────────────────────────────────
+
+func TestNotification_Initialized_Returns202(t *testing.T) {
+	_, srv := newTestServer(t, "")
+
+	// Notifications don't require a session (no sessions established yet).
+	body := []byte(`{"jsonrpc":"2.0","method":"notifications/initialized"}`)
+	resp := postRPCRaw(t, srv.URL, body, "", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		t.Errorf("expected 202 Accepted for notification, got %d", resp.StatusCode)
+	}
+
+	// Body should be empty.
+	var buf bytes.Buffer
+	buf.ReadFrom(resp.Body)
+	if buf.Len() != 0 {
+		t.Errorf("expected empty body for notification, got %d bytes", buf.Len())
+	}
+}
+
+func TestNotification_UnknownMethod_Returns202(t *testing.T) {
+	_, srv := newTestServer(t, "")
+
+	body := []byte(`{"jsonrpc":"2.0","method":"notifications/custom_event"}`)
+	resp := postRPCRaw(t, srv.URL, body, "", nil)
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusAccepted {
+		t.Errorf("expected 202 Accepted for unknown notification, got %d", resp.StatusCode)
+	}
+}
+
+// ── HTTP method tests ─────────────────────────────────────────────────────────
+
+func TestGET_Returns405(t *testing.T) {
+	_, srv := newTestServer(t, "")
+
+	resp, err := http.Get(srv.URL)
+	if err != nil {
+		t.Fatalf("GET request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("expected 405 for GET, got %d", resp.StatusCode)
+	}
+}
+
+func TestDELETE_Returns405(t *testing.T) {
+	_, srv := newTestServer(t, "")
+
+	req, err := http.NewRequest(http.MethodDelete, srv.URL, nil)
+	if err != nil {
+		t.Fatalf("create DELETE request: %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusMethodNotAllowed {
+		t.Errorf("expected 405 for DELETE, got %d", resp.StatusCode)
 	}
 }
 

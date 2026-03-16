@@ -2,6 +2,8 @@ package mcpserver
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -28,6 +30,7 @@ type Server struct {
 	httpServer *http.Server
 	listener   net.Listener // if non-nil, Start uses this instead of creating one
 	logger     *slog.Logger
+	sessions   sync.Map // sessionID (string) -> struct{}
 }
 
 // jsonRPCRequest is a minimal JSON-RPC 2.0 request envelope.
@@ -122,9 +125,24 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return nil
 }
 
+// generateSessionID returns a crypto-random hex-encoded 16-byte session ID.
+func generateSessionID() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		panic("crypto/rand failed: " + err.Error())
+	}
+	return hex.EncodeToString(b)
+}
+
+// isNotification returns true if the decoded request has no id field (a JSON-RPC
+// notification). Per MCP spec, id MUST NOT be null, so nil id is treated as absent.
+func isNotification(req jsonRPCRequest) bool {
+	return req.ID == nil
+}
+
 // handleRPC is the single HTTP endpoint that processes all JSON-RPC requests.
 func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
-	// Only POST is valid for JSON-RPC.
+	// Only POST is valid for JSON-RPC over Streamable HTTP.
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -156,7 +174,44 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Session validation: skip for initialize, require for everything else
+	// once sessions are in use.
+	if req.Method != "initialize" {
+		sessionID := r.Header.Get("Mcp-Session-Id")
+		if sessionID == "" {
+			// Check if any sessions exist; if so, a session ID is required.
+			hasSession := false
+			s.sessions.Range(func(_, _ interface{}) bool {
+				hasSession = true
+				return false // stop iteration
+			})
+			if hasSession {
+				http.Error(w, "Bad Request: Mcp-Session-Id header required", http.StatusBadRequest)
+				return
+			}
+		} else {
+			if _, ok := s.sessions.Load(sessionID); !ok {
+				http.Error(w, "Session not found", http.StatusNotFound)
+				return
+			}
+		}
+	}
+
+	// Notifications: method present but no id.
+	if isNotification(req) {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+
 	resp := s.dispatch(req)
+
+	// If this is an initialize response, generate and attach session ID.
+	if req.Method == "initialize" && resp.Error == nil {
+		sid := generateSessionID()
+		s.sessions.Store(sid, struct{}{})
+		w.Header().Set("Mcp-Session-Id", sid)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
@@ -209,7 +264,7 @@ func (s *Server) handleInitialize(req jsonRPCRequest) jsonRPCResponse {
 		JSONRPC: "2.0",
 		ID:      req.ID,
 		Result: initializeResult{
-			ProtocolVersion: "2024-11-05",
+			ProtocolVersion: "2025-11-25",
 			ServerInfo:      serverInfo{Name: "a2a-sentinel", Version: "0.2.0"},
 			Capabilities: map[string]any{
 				"tools":     map[string]any{},
